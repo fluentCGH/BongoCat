@@ -1,8 +1,7 @@
 import type { ExpressionInfo, MotionInfo } from 'easy-live2d'
 
 import { resolveResource } from '@tauri-apps/api/path'
-import { filter, find } from 'es-toolkit/compat'
-import { nanoid } from 'nanoid'
+import { filter } from 'es-toolkit/compat'
 import { defineStore } from 'pinia'
 import { reactive, ref } from 'vue'
 
@@ -31,22 +30,23 @@ export const useModelStore = defineStore('model', () => {
     const modelsPath = await resolveResource('assets/models')
 
     const nextModels = filter(models.value, { isPreset: false })
-    const presetModels = filter(models.value, { isPreset: true })
+    const presets: Array<{ directory: string, mode: ModelMode }> = [
+      { directory: 'standard', mode: 'standard' },
+      { directory: 'keyboard', mode: 'keyboard' },
+      { directory: 'gamepad', mode: 'gamepad' },
+      { directory: 'vessel', mode: 'keyboard' },
+    ]
 
-    const modes: ModelMode[] = ['gamepad', 'keyboard', 'standard']
-
-    for (const mode of modes) {
-      const matched = find(presetModels, { mode })
-
+    for (const { directory, mode } of presets) {
       nextModels.unshift({
-        id: matched?.id ?? nanoid(),
+        id: `preset:${directory}`,
         mode,
         isPreset: true,
-        path: join(modelsPath, mode),
+        path: join(modelsPath, directory),
       })
     }
 
-    const matched = find(nextModels, { id: currentModel.value?.id })
+    const matched = nextModels.find(({ id }) => id === currentModel.value?.id)
 
     currentModel.value = matched ?? nextModels[0]
 

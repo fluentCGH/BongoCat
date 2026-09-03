@@ -12,7 +12,7 @@
     "build": "run-s build:*",
     "dev:vite": "vite",
     "build:vite": "vite build",
-    "build:icon": "tsx scripts/buildIcon.ts",
+    "build:icon": "node --import tsx scripts/buildIcon.ts",
     "preview": "vite preview",
     "tauri": "tauri",
     "lint": "eslint --fix src",

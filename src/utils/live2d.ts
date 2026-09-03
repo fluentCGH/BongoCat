@@ -1,4 +1,5 @@
 import type { MotionInfo } from 'easy-live2d'
+import type { Container } from 'pixi.js'
 
 import { convertFileSrc } from '@tauri-apps/api/core'
 import { readDir, readTextFile } from '@tauri-apps/plugin-fs'
@@ -11,13 +12,18 @@ import type { ModelSize } from '@/composables/useModel'
 
 import { i18n } from '@/locales'
 
+import type { SpritePetManifest } from './spritePet'
+
 import { join } from './path'
+import { SpritePet } from './spritePet'
 
 Config.MouseFollow = false
 
 class Live2d {
   private app: Application | null = null
-  public model: Live2DSprite | null = null
+  private liveModel: Live2DSprite | null = null
+  private spriteModel: SpritePet | null = null
+  private displayObject: Live2DSprite | Container | null = null
 
   constructor() { }
 
@@ -45,12 +51,31 @@ class Live2d {
     const files = await readDir(path)
 
     const modelFile = files.find(file => file.name.endsWith('.model3.json'))
+    const spriteFile = files.find(file => file.name.endsWith('.sprite.json'))
 
-    if (!modelFile) {
+    if (!modelFile && !spriteFile) {
       throw new Error(i18n.global.t('utils.live2d.hints.notFound'))
     }
 
-    const modelPath = join(path, modelFile.name)
+    if (spriteFile) {
+      const manifestPath = join(path, spriteFile.name)
+      const manifest = JSON5.parse(
+        await readTextFile(manifestPath),
+      ) as SpritePetManifest
+
+      this.spriteModel = await SpritePet.create(path, manifest)
+      this.displayObject = this.spriteModel.root
+      this.app?.stage.addChild(this.displayObject)
+
+      return {
+        width: this.spriteModel.width,
+        height: this.spriteModel.height,
+        motions: {},
+        expressions: [],
+      }
+    }
+
+    const modelPath = join(path, modelFile!.name)
 
     const modelJSON = JSON5.parse(await readTextFile(modelPath))
 
@@ -62,19 +87,20 @@ class Live2d {
       return convertFileSrc(join(path, file))
     })
 
-    this.model = new Live2DSprite({
+    this.liveModel = new Live2DSprite({
       modelSetting,
       ticker: Ticker.shared,
     })
 
-    this.app?.stage.addChild(this.model)
+    this.displayObject = this.liveModel
+    this.app?.stage.addChild(this.liveModel)
 
-    await this.model.ready
+    await this.liveModel.ready
 
-    const { width, height } = this.model
+    const { width, height } = this.liveModel
 
-    const motions = groupBy(this.model.getMotions(), 'group')
-    const expressions = this.model.getExpressions()
+    const motions = groupBy(this.liveModel.getMotions(), 'group')
+    const expressions = this.liveModel.getExpressions()
 
     return {
       width,
@@ -85,15 +111,20 @@ class Live2d {
   }
 
   public destroy() {
-    if (!this.model) return
+    if (this.displayObject?.parent) {
+      this.displayObject.parent.removeChild(this.displayObject)
+    }
 
-    this.model?.destroy()
+    this.liveModel?.destroy()
+    this.spriteModel?.destroy()
 
-    this.model = null
+    this.liveModel = null
+    this.spriteModel = null
+    this.displayObject = null
   }
 
   public resizeModel(modelSize: ModelSize) {
-    if (!this.model) return
+    if (!this.displayObject) return
 
     const { width, height } = modelSize
 
@@ -101,29 +132,36 @@ class Live2d {
     const scaleY = innerHeight / height
     const scale = Math.min(scaleX, scaleY)
 
-    this.model.scale.set(scale)
-    this.model.x = innerWidth / 2
-    this.model.y = innerHeight / 2
-    this.model.anchor.set(0.5)
+    this.displayObject.scale.set(scale)
+    this.displayObject.x = innerWidth / 2
+    this.displayObject.y = innerHeight / 2
+
+    if (this.liveModel) {
+      this.liveModel.anchor.set(0.5)
+    } else {
+      this.displayObject.pivot.set(width / 2, height / 2)
+    }
   }
 
   public startMotion(motion: MotionInfo) {
-    return this.model?.startMotion({
+    return this.liveModel?.startMotion({
       ...motion,
       priority: Priority.Normal,
     })
   }
 
   public setExpression(index: number) {
-    return this.model?.setExpression({ index })
+    return this.liveModel?.setExpression({ index })
   }
 
   public getParameterValueRange(id: string) {
-    return this.model?.getParameterValueRangeById(id)
+    return this.liveModel?.getParameterValueRangeById(id)
+      ?? this.spriteModel?.getParameterValueRangeById(id)
   }
 
   public setParameterValue(id: string, value: number | boolean) {
-    return this.model?.setParameterValueById(id, Number(value))
+    return this.liveModel?.setParameterValueById(id, Number(value))
+      ?? this.spriteModel?.setParameterValueById(id, Number(value))
   }
 
   public setMotionSoundEnabled(enabled: boolean) {

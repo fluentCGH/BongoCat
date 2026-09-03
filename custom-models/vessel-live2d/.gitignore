@@ -1,0 +1,10 @@
+/layers/
+/references/
+/export/source-layers/
+/export/preview-*.png
+/scripts/build_source_pack.py
+/scripts/revise_v3_nail.py
+/scripts/smooth_hands.py
+/source-art/*
+!/source-art/vessel-bongocat-concept-v16-chroma.png
+!/source-art/vessel-bongocat-master.png

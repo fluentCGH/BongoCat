@@ -1,0 +1,68 @@
+{
+  "Version": 1,
+  "Name": "Vessel",
+  "Canvas": {
+    "Width": 1536,
+    "Height": 1024
+  },
+  "Idle": {
+    "Amplitude": 1.5,
+    "Period": 3.2
+  },
+  "Layers": [
+    {
+      "Id": "base",
+      "File": "layers/01_base.png"
+    },
+    {
+      "Id": "left-arm",
+      "File": "layers/02_left_arm.png",
+      "Pivot": [
+        626,
+        706
+      ],
+      "Parameters": [
+        "CatParamLeftHandDown"
+      ],
+      "Pressed": {
+        "Translate": [
+          0,
+          3
+        ],
+        "Rotation": -0.035,
+        "Scale": [
+          1.0,
+          0.99
+        ]
+      }
+    },
+    {
+      "Id": "right-arm",
+      "File": "layers/03_right_arm.png",
+      "Pivot": [
+        910,
+        706
+      ],
+      "Parameters": [
+        "CatParamRightHandDown",
+        "ParamMouseLeftDown",
+        "ParamMouseRightDown"
+      ],
+      "Pressed": {
+        "Translate": [
+          0,
+          3
+        ],
+        "Rotation": 0.035,
+        "Scale": [
+          1.0,
+          0.99
+        ]
+      }
+    },
+    {
+      "Id": "foreground",
+      "File": "layers/04_foreground.png"
+    }
+  ]
+}
