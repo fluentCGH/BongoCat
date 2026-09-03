@@ -25,6 +25,7 @@ def require(condition: bool, message: str) -> None:
 def main() -> None:
     data = json.loads(MANIFEST.read_text())
     require(data["Version"] == 1, "unsupported sprite manifest version")
+    require("Blink" in data, "blink timing is not configured")
 
     canvas = (data["Canvas"]["Width"], data["Canvas"]["Height"])
     require(canvas == (1536, 1024), f"unexpected canvas: {canvas}")
@@ -51,6 +52,8 @@ def main() -> None:
         required_parameters <= parameter_names,
         f"missing parameters: {sorted(required_parameters - parameter_names)}",
     )
+    blink_layers = [layer for layer in data["Layers"] if layer.get("Blink")]
+    require(len(blink_layers) == 2, "both eye layers must share the blink action")
 
     left_keys = list((MODEL / "resources" / "left-keys").glob("*.png"))
     right_keys = list((MODEL / "resources" / "right-keys").glob("*.png"))
@@ -71,7 +74,7 @@ def main() -> None:
 
     print(
         "Vessel sprite model OK: "
-        f"{len(data['Layers'])} layers, "
+        f"{len(data['Layers'])} layers with synced blink, "
         f"{len(left_keys) + len(right_keys)} key mappings, "
         f"{changed_ratio:.3%} rest-pose pixel drift"
     )

@@ -5,9 +5,13 @@
     "Width": 1536,
     "Height": 1024
   },
-  "Idle": {
-    "Amplitude": 1.5,
-    "Period": 3.2
+  "Blink": {
+    "Interval": [
+      3.2,
+      6.4
+    ],
+    "Duration": 0.18,
+    "ScaleY": 0.06
   },
   "Layers": [
     {
@@ -63,6 +67,24 @@
     {
       "Id": "foreground",
       "File": "layers/04_foreground.png"
+    },
+    {
+      "Id": "left-eye",
+      "File": "layers/05_left_eye.png",
+      "Pivot": [
+        660,
+        476
+      ],
+      "Blink": true
+    },
+    {
+      "Id": "right-eye",
+      "File": "layers/06_right_eye.png",
+      "Pivot": [
+        884,
+        476
+      ],
+      "Blink": true
     }
   ]
 }

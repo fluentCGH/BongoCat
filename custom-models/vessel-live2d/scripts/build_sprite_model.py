@@ -2,8 +2,9 @@
 """Build the approved Vessel artwork into BongoCat's sprite-model format.
 
 The source artwork is intentionally kept as a single approved master.  This
-script derives the two independently animated arms, a repaired background, and
-an upper-body occluder without using any online background-removal service.
+script derives the two independently animated arms, two blinking eyes, a
+repaired background, and an upper-body occluder without using any online
+background-removal service.
 """
 
 from __future__ import annotations
@@ -56,6 +57,30 @@ def arm_masks() -> tuple[Image.Image, Image.Image]:
     ]
     right_points = [(CANVAS[0] - x, y) for x, y in left_points]
     return supersampled_polygon(left_points), supersampled_polygon(right_points)
+
+
+def eye_masks(source: Image.Image) -> tuple[Image.Image, Image.Image]:
+    """Extract both approved eye silhouettes, including antialiased edges."""
+    rgba = np.asarray(source)
+    luminance = rgba[..., :3].mean(axis=2)
+    opaque = rgba[..., 3] > 180
+    masks: list[Image.Image] = []
+
+    for x0, y0, x1, y1 in ((580, 360, 750, 590), (800, 360, 970, 590)):
+        candidate = (luminance[y0:y1, x0:x1] < 100) & opaque[y0:y1, x0:x1]
+        labels, _ = ndimage.label(candidate)
+        centre_label = labels[(476 - y0), (660 if x0 < 700 else 884) - x0]
+        if centre_label == 0:
+            raise ValueError("could not locate approved eye artwork")
+
+        component = labels == centre_label
+        component = ndimage.binary_dilation(component, iterations=2)
+        local = Image.fromarray((component * 255).astype(np.uint8), mode="L")
+        full = Image.new("L", CANVAS, 0)
+        full.paste(local, (x0, y0))
+        masks.append(full.filter(ImageFilter.GaussianBlur(0.7)))
+
+    return masks[0], masks[1]
 
 
 def apply_mask(source: Image.Image, mask: Image.Image) -> Image.Image:
@@ -151,7 +176,7 @@ def build_manifest() -> None:
         "Version": 1,
         "Name": "Vessel",
         "Canvas": {"Width": CANVAS[0], "Height": CANVAS[1]},
-        "Idle": {"Amplitude": 1.5, "Period": 3.2},
+        "Blink": {"Interval": [3.2, 6.4], "Duration": 0.18, "ScaleY": 0.06},
         "Layers": [
             {"Id": "base", "File": "layers/01_base.png"},
             {
@@ -181,6 +206,18 @@ def build_manifest() -> None:
                 },
             },
             {"Id": "foreground", "File": "layers/04_foreground.png"},
+            {
+                "Id": "left-eye",
+                "File": "layers/05_left_eye.png",
+                "Pivot": [660, 476],
+                "Blink": True,
+            },
+            {
+                "Id": "right-eye",
+                "File": "layers/06_right_eye.png",
+                "Pivot": [884, 476],
+                "Blink": True,
+            },
         ],
     }
     path = OUTPUT / "vessel.sprite.json"
@@ -193,17 +230,28 @@ def main() -> None:
         raise ValueError(f"expected {CANVAS}, got {source.size}")
 
     left_mask, right_mask = arm_masks()
+    left_eye_mask, right_eye_mask = eye_masks(source)
+    eyes = ImageChops.lighter(left_eye_mask, right_eye_mask)
+    eye_removal = eyes.filter(ImageFilter.MaxFilter(15))
+    source_without_eyes = nearest_fill(source, eye_removal)
     removal = ImageChops.lighter(left_mask, right_mask).filter(ImageFilter.MaxFilter(9))
 
-    base = nearest_fill(source, removal)
+    base = nearest_fill(source_without_eyes, removal)
     left_arm = apply_mask(source, left_mask)
     right_arm = apply_mask(source, right_mask)
-    foreground = apply_mask(source, foreground_mask(left_mask, right_mask))
+    foreground = apply_mask(
+        source_without_eyes,
+        foreground_mask(left_mask, right_mask),
+    )
+    left_eye = apply_mask(source, left_eye_mask)
+    right_eye = apply_mask(source, right_eye_mask)
 
     save_png(base, OUTPUT / "layers" / "01_base.png")
     save_png(left_arm, OUTPUT / "layers" / "02_left_arm.png")
     save_png(right_arm, OUTPUT / "layers" / "03_right_arm.png")
     save_png(foreground, OUTPUT / "layers" / "04_foreground.png")
+    save_png(left_eye, OUTPUT / "layers" / "05_left_eye.png")
+    save_png(right_eye, OUTPUT / "layers" / "06_right_eye.png")
     build_cover(source)
     build_key_resources()
     build_manifest()

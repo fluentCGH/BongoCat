@@ -54,18 +54,23 @@ def ease(value: float) -> float:
     return value * value * (3 - 2 * value)
 
 
-def amounts() -> list[tuple[float, float]]:
-    frames: list[tuple[float, float]] = [(0, 0)] * 8
+def amounts() -> list[tuple[float, float, float]]:
+    frames: list[tuple[float, float, float]] = [(0, 0, 0)] * 8
+
+    for index in range(9):
+        blink = math.sin(math.pi * index / 8) ** 2
+        frames.append((0, 0, blink))
+    frames.extend([(0, 0, 0)] * 6)
 
     def tap(left: bool, right: bool) -> None:
         for index in range(6):
             value = ease((index + 1) / 6)
-            frames.append((value if left else 0, value if right else 0))
-        frames.extend([(1 if left else 0, 1 if right else 0)] * 4)
+            frames.append((value if left else 0, value if right else 0, 0))
+        frames.extend([(1 if left else 0, 1 if right else 0, 0)] * 4)
         for index in range(8):
             value = 1 - ease((index + 1) / 8)
-            frames.append((value if left else 0, value if right else 0))
-        frames.extend([(0, 0)] * 5)
+            frames.append((value if left else 0, value if right else 0, 0))
+        frames.extend([(0, 0, 0)] * 5)
 
     tap(left=True, right=False)
     tap(left=False, right=True)
@@ -81,9 +86,11 @@ def main() -> None:
     left = Image.open(MODEL / layers["left-arm"]["File"]).convert("RGBA")
     right = Image.open(MODEL / layers["right-arm"]["File"]).convert("RGBA")
     foreground = Image.open(MODEL / layers["foreground"]["File"]).convert("RGBA")
+    left_eye = Image.open(MODEL / layers["left-eye"]["File"]).convert("RGBA")
+    right_eye = Image.open(MODEL / layers["right-eye"]["File"]).convert("RGBA")
 
     rendered: list[Image.Image] = []
-    for left_amount, right_amount in amounts():
+    for left_amount, right_amount, blink_amount in amounts():
         frame = base.copy()
         frame.alpha_composite(
             transform_layer(
@@ -102,6 +109,26 @@ def main() -> None:
             )
         )
         frame.alpha_composite(foreground)
+        blink_scale = float(manifest["Blink"]["ScaleY"])
+        eye_transform = {
+            "Scale": [1, 1 + (blink_scale - 1) * blink_amount],
+        }
+        frame.alpha_composite(
+            transform_layer(
+                left_eye,
+                tuple(layers["left-eye"]["Pivot"]),
+                eye_transform,
+                1,
+            )
+        )
+        frame.alpha_composite(
+            transform_layer(
+                right_eye,
+                tuple(layers["right-eye"]["Pivot"]),
+                eye_transform,
+                1,
+            )
+        )
 
         preview = Image.new("RGB", CANVAS, "#f3f5f9")
         preview.paste(frame, mask=frame.getchannel("A"))
