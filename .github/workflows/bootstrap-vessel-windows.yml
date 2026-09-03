@@ -1,6 +1,9 @@
 name: Bootstrap Vessel Windows Build
 
 on:
+  push:
+    branches:
+      - feat/vessel-live2d-model
   workflow_dispatch:
 
 jobs:
