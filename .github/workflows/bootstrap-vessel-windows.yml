@@ -26,6 +26,7 @@ jobs:
           git rm 0001-feat-add-vessel-sprite-pet-model.patch
           git rm 0002-feat-add-vessel-blink-and-windows-build.patch
           git rm .github/workflows/bootstrap-vessel-windows.yml
+          git rm .github/workflows/build-vessel-windows.yml
           git commit -m "chore: remove bootstrap files"
           git push origin "HEAD:${{ github.ref_name }}"
 
