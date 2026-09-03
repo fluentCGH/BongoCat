@@ -47,5 +47,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: vessel-bongocat-windows-x64
-          path: src-tauri/target/release/bundle/nsis/*-setup.exe
+          path: target/release/bundle/nsis/*-setup.exe
           if-no-files-found: error
